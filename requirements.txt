@@ -1,0 +1,8 @@
+cat > ~/eye_project/requirements.txt << 'EOF'
+opencv-python==4.11.0.86
+transformers==5.7.0
+torch==2.11.0
+torchvision==0.26.0
+Pillow==12.2.0
+numpy==1.26.4
+EOF

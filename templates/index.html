@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EyeGuard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #08080f;
+      --bg-2:     #0e0e1a;
+      --bg-3:     #141424;
+      --border:   rgba(255,255,255,0.06);
+      --text:     #e2e2f0;
+      --muted:    rgba(255,255,255,0.28);
+      --green:    #5DCAA5;
+      --amber:    #EF9F27;
+      --red:      #E24B4A;
+      --blue:     #378ADD;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 56px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .logo-text { font-size: 14px; font-weight: 500; letter-spacing: 0.05em; color: var(--text); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .pill { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 0.5px solid rgba(93,202,165,0.25); font-size: 11px; color: var(--green); letter-spacing: 0.04em; }
+    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+    .pill.inactive { border-color: rgba(255,255,255,0.1); color: var(--muted); }
+    .pill.inactive .pill-dot { background: var(--muted); }
+
+    /* Layout */
+    .body { display: grid; grid-template-columns: 1fr 300px; flex: 1; overflow: hidden; }
+
+    /* Camera */
+    .camera-wrap { position: relative; background: #05050d; display: flex; align-items: center; justify-content: center; border-right: 0.5px solid var(--border); overflow: hidden; }
+    .camera-feed { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .camera-feed.active { display: block; }
+    .camera-placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .camera-icon { width: 52px; height: 52px; border-radius: 50%; border: 0.5px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 20px; color: rgba(255,255,255,0.15); }
+    .camera-hint { font-size: 12px; color: var(--muted); }
+
+    /* Overlay on camera */
+    .camera-overlay { position: absolute; inset: 0; pointer-events: none; }
+    .eye-indicator { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: rgba(8,8,15,0.7); border: 0.5px solid var(--border); border-radius: 999px; padding: 7px 16px; font-size: 12px; }
+    .eye-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .eye-dot.closed { background: var(--red); }
+
+    /* Break overlay */
+    .break-overlay { position: absolute; inset: 0; background: rgba(8,8,15,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .break-overlay.show { display: flex; }
+    .break-title { font-size: 22px; font-weight: 500; color: var(--text); }
+    .break-sub { font-size: 13px; color: var(--muted); text-align: center; max-width: 280px; line-height: 1.6; }
+    .break-counter { font-size: 56px; font-weight: 500; color: var(--green); letter-spacing: -2px; }
+    .break-ring { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .break-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 3; }
+    .ring-fill { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 339; stroke-dashoffset: 339; transition: stroke-dashoffset 1s linear; }
+    .ring-number { font-size: 36px; font-weight: 500; color: var(--green); }
+
+    /* Sidebar */
+    .sidebar { display: flex; flex-direction: column; background: var(--bg-2); overflow-y: auto; }
+    .s-section { padding: 18px 20px; border-bottom: 0.5px solid var(--border); }
+    .s-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+
+    /* Metrics */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { background: var(--bg-3); border-radius: 8px; padding: 12px 14px; }
+    .metric-val { font-size: 20px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+    .metric-lbl { font-size: 11px; color: var(--muted); }
+    .g { color: var(--green); }
+    .a { color: var(--amber); }
+    .r { color: var(--red); }
+    .w { color: var(--text); }
+
+    /* Fatigue bar */
+    .fatigue-track { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; margin-top: 6px; overflow: hidden; }
+    .fatigue-fill { height: 100%; border-radius: 1px; transition: width 0.5s, background 0.5s; }
+
+    /* Break countdown */
+    .break-card { background: var(--bg-3); border-radius: 8px; padding: 14px; }
+    .break-time-big { font-size: 26px; font-weight: 500; color: var(--text); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+    .break-bar { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; overflow: hidden; }
+    .break-bar-fill { height: 100%; background: var(--green); border-radius: 1px; transition: width 1s linear; }
+    .break-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* Alerts */
+    .alerts-list { display: flex; flex-direction: column; gap: 7px; }
+    .alert { padding: 9px 11px; border-radius: 6px; font-size: 12px; line-height: 1.5; border-left: 2px solid; }
+    .alert.g { background: rgba(29,158,117,0.07); border-color: #1D9E75; color: #5DCAA5; }
+    .alert.a { background: rgba(186,117,23,0.07); border-color: #BA7517; color: #EF9F27; }
+    .alert.r { background: rgba(162,45,45,0.07); border-color: #A32D2D; color: #E24B4A; }
+    .alert-t { font-size: 10px; opacity: 0.5; margin-bottom: 2px; }
+    .no-alerts { font-size: 12px; color: var(--muted); }
+
+    /* Controls */
+    .controls { padding: 16px 20px; margin-top: auto; border-top: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .btn { width: 100%; padding: 11px; border-radius: 7px; font-size: 13px; font-family: inherit; cursor: pointer; letter-spacing: 0.02em; transition: all 0.15s; border: 0.5px solid; }
+    .btn-start { background: rgba(93,202,165,0.1); border-color: rgba(93,202,165,0.3); color: var(--green); }
+    .btn-start:hover { background: rgba(93,202,165,0.18); }
+    .btn-stop { background: rgba(162,45,45,0.08); border-color: rgba(162,45,45,0.3); color: var(--red); display: none; }
+    .btn-stop:hover { background: rgba(162,45,45,0.15); }
+    .btn-report { background: rgba(55,138,221,0.08); border-color: rgba(55,138,221,0.25); color: var(--blue); display: none; }
+    .btn-report:hover { background: rgba(55,138,221,0.14); }
+
+    /* Report modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(5,5,12,0.9); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    .modal-bg.show { display: flex; }
+    .modal { background: var(--bg-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 28px; max-width: 480px; width: 100%; }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 16px; }
+    .modal-body { font-family: 'SF Mono', monospace; font-size: 12px; color: var(--muted); white-space: pre-wrap; line-height: 1.8; background: var(--bg-3); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .modal-close { width: 100%; padding: 10px; border-radius: 7px; border: 0.5px solid var(--border); background: none; color: var(--muted); font-size: 13px; font-family: inherit; cursor: pointer; }
+    .modal-close:hover { background: var(--bg-3); color: var(--text); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-dot" id="logo-dot"></div>
+    <span class="logo-text">EyeGuard</span>
+  </div>
+  <div class="header-right">
+    <div class="pill inactive" id="status-pill">
+      <div class="pill-dot"></div>
+      <span id="status-text">Inactive</span>
+    </div>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- Camera -->
+  <div class="camera-wrap">
+    <div class="camera-placeholder" id="placeholder">
+      <div class="camera-icon"><i class="ti ti-camera-off"></i></div>
+      <span class="camera-hint">Start a session to enable eye tracking</span>
+    </div>
+
+    <img class="camera-feed" id="camera-feed" src="" alt="Camera feed" />
+
+    <div class="camera-overlay">
+      <div class="eye-indicator" id="eye-indicator" style="display:none">
+        <div class="eye-dot" id="eye-dot"></div>
+        <span id="eye-label">Detecting...</span>
+      </div>
+    </div>
+
+    <!-- Break overlay -->
+    <div class="break-overlay" id="break-overlay">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase">20 — 20 — 20 Rule</div>
+      <div class="break-title">Time for a break</div>
+      <div class="break-sub">Look at something 20 feet away.<br>Rest your eyes for 20 seconds.</div>
+      <div class="break-ring">
+        <svg viewBox="0 0 120 120" width="120" height="120">
+          <circle class="ring-track" cx="60" cy="60" r="54"/>
+          <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="54"/>
+        </svg>
+        <span class="ring-number" id="ring-number">20</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Session resumes automatically</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="s-section">
+      <div class="s-label">Session</div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val w" id="m-time">--:--</div>
+          <div class="metric-lbl">Duration</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val g" id="m-fatigue">0%</div>
+          <div class="metric-lbl">Eye fatigue</div>
+          <div class="fatigue-track"><div class="fatigue-fill" id="fatigue-fill" style="width:0%;background:var(--green)"></div></div>
+        </div>
+        <div class="metric">
+          <div class="metric-val w" id="m-blinks">--</div>
+          <div class="metric-lbl">Blinks / min</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val w" id="m-alerts">0</div>
+          <div class="metric-lbl">Alerts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-label">Next break</div>
+      <div class="break-card">
+        <div class="break-time-big" id="break-countdown">20:00</div>
+        <div class="break-bar"><div class="break-bar-fill" id="break-bar" style="width:0%"></div></div>
+        <div class="break-hint">20-20-20 rule — every 20 minutes</div>
+      </div>
+    </div>
+
+    <div class="s-section" style="flex:1">
+      <div class="s-label">Alerts</div>
+      <div class="alerts-list" id="alerts-list">
+        <span class="no-alerts">No alerts yet</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-start" id="btn-start" onclick="startSession()">Start session</button>
+      <button class="btn btn-stop"  id="btn-stop"  onclick="stopSession()">End session</button>
+      <button class="btn btn-report" id="btn-report" onclick="showReport()">View report</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-title">Session Report</div>
+    <div class="modal-body" id="modal-body">Loading...</div>
+    <button class="modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+let interval     = null;
+let breakTimer   = null;
+let isRunning    = false;
+let lastAlerts   = 0;
+let prevAlerts   = [];
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+async function startSession(){
+  await fetch('/start', {method:'POST'});
+  isRunning = true;
+
+  document.getElementById('placeholder').style.display    = 'none';
+  document.getElementById('camera-feed').style.display    = 'block';
+  document.getElementById('eye-indicator').style.display  = 'flex';
+  document.getElementById('btn-start').style.display      = 'none';
+  document.getElementById('btn-stop').style.display       = 'block';
+  document.getElementById('btn-report').style.display     = 'block';
+
+  const pill = document.getElementById('status-pill');
+  pill.className = 'pill';
+  document.getElementById('status-text').textContent = 'Monitoring';
+  document.getElementById('logo-dot').style.background = 'var(--green)';
+
+  refreshFrame();
+  interval = setInterval(fetchData, 1000);
+}
+
+async function stopSession(){
+  await fetch('/stop', {method:'POST'});
+  isRunning = false;
+  clearInterval(interval);
+
+  document.getElementById('status-pill').className = 'pill inactive';
+  document.getElementById('status-text').textContent = 'Stopped';
+  document.getElementById('logo-dot').style.background = 'var(--red)';
+  document.getElementById('btn-stop').style.display = 'none';
+}
+
+function refreshFrame(){
+  if(!isRunning) return;
+  const img = document.getElementById('camera-feed');
+  img.src = '/frame?' + Date.now();
+  img.onload = () => setTimeout(refreshFrame, 80);
+  img.onerror = () => setTimeout(refreshFrame, 500);
+}
+
+async function fetchData(){
+  const res  = await fetch('/data');
+  const data = await res.json();
+  if(!data.running) return;
+
+  const mm = Math.floor(data.minutes);
+  const ss = 0;
+  document.getElementById('m-time').textContent = pad(mm)+':00';
+
+  const f     = data.fatigue;
+  const fEl   = document.getElementById('m-fatigue');
+  fEl.textContent = f+'%';
+  fEl.className   = 'metric-val '+(f<30?'g':f<60?'a':'r');
+  const ff = document.getElementById('fatigue-fill');
+  ff.style.width      = f+'%';
+  ff.style.background = f<30?'var(--green)':f<60?'var(--amber)':'var(--red)';
+
+  const b   = data.blink_rate;
+  const bEl = document.getElementById('m-blinks');
+  bEl.textContent = b > 0 ? b : '--';
+  bEl.className   = 'metric-val '+(b>=12?'g':b>=8?'a':'r');
+
+  document.getElementById('m-alerts').textContent = data.alerts_count;
+
+  const bSec = data.break_in;
+  const bMin = Math.floor(bSec/60);
+  const bS   = bSec % 60;
+  document.getElementById('break-countdown').textContent = pad(bMin)+':'+pad(bS);
+  document.getElementById('break-bar').style.width = data.break_pct+'%';
+
+  const eyeEl  = document.getElementById('eye-label');
+  const eyeDot = document.getElementById('eye-dot');
+  eyeEl.textContent    = data.eye_status;
+  eyeDot.className     = 'eye-dot'+(data.is_open===false?' closed':'');
+
+  if(bSec === 0 && !document.getElementById('break-overlay').classList.contains('show')){
+    triggerBreak();
+  }
+
+  updateAlerts(data.alerts);
+}
+
+function updateAlerts(alerts){
+  if(!alerts || alerts.length === 0) return;
+  if(JSON.stringify(alerts) === JSON.stringify(prevAlerts)) return;
+  prevAlerts = alerts;
+
+  const list = document.getElementById('alerts-list');
+  list.innerHTML = '';
+  alerts.slice().reverse().forEach(a => {
+    const cls = a.type === 'break' ? 'g' : a.type === 'blink' ? 'a' : 'r';
+    const el  = document.createElement('div');
+    el.className = 'alert '+cls;
+    el.innerHTML = `<div class="alert-t">${a.time}</div>${a.message || a.title}`;
+    list.appendChild(el);
+  });
+}
+
+let breakCount = 20;
+let breakInterval = null;
+
+function triggerBreak(){
+  breakCount = 20;
+  document.getElementById('break-overlay').classList.add('show');
+  updateRing(20);
+  breakInterval = setInterval(() => {
+    breakCount--;
+    updateRing(breakCount);
+    if(breakCount <= 0){
+      clearInterval(breakInterval);
+      document.getElementById('break-overlay').classList.remove('show');
+    }
+  }, 1000);
+}
+
+function updateRing(n){
+  document.getElementById('ring-number').textContent = n;
+  const pct    = n / 20;
+  const offset = 339 - (339 * pct);
+  document.getElementById('ring-fill').style.strokeDashoffset = offset;
+}
+
+async function showReport(){
+  document.getElementById('modal').classList.add('show');
+  const res  = await fetch('/report');
+  const data = await res.json();
+  document.getElementById('modal-body').textContent = data.report;
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+}
+</script>
+</body>
+</html>
